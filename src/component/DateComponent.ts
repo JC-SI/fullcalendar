@@ -602,6 +602,7 @@ export default abstract class DateComponent extends Component {
       }
 
       seg.footprint = eventFootprint
+      seg.resourceId = eventFootprint.eventDef.resourceId
       // TODO: rename to seg.eventFootprint
     }
 

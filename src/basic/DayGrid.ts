@@ -1,6 +1,6 @@
 import * as $ from 'jquery'
 import { htmlEscape } from '../util'
-import CoordCache from '../common/CoordCache'
+//import CoordCache from '../common/CoordCache'
 import Popover from '../common/Popover'
 import UnzonedRange from '../models/UnzonedRange'
 import ComponentFootprint from '../models/ComponentFootprint'
@@ -23,7 +23,11 @@ export default class DayGrid extends InteractiveDateComponent {
   colCnt: DayTableInterface['colCnt']
   daysPerRow: DayTableInterface['daysPerRow']
   sliceRangeByRow: DayTableInterface['sliceRangeByRow']
+  getContainerEls: DayTableInterface['getContainerEls']
+  groupSegsByResource: DayTableInterface['groupSegsByResource']
+  getSegsByResource: DayTableInterface['getSegsByResource']
   updateDayTable: DayTableInterface['updateDayTable']
+  renderContentCol: DayTableInterface['renderContentCol']
   renderHeadHtml: DayTableInterface['renderHeadHtml']
   getCellDate: DayTableInterface['getCellDate']
   renderBgTrHtml: DayTableInterface['renderBgTrHtml']
@@ -100,12 +104,12 @@ export default class DayGrid extends InteractiveDateComponent {
 
   // Renders the rows and columns into the component's `this.el`, which should already be assigned.
   renderGrid() {
-    let view = this.view
+    //let view = this.view
     let rowCnt = this.rowCnt
-    let colCnt = this.colCnt
+    //let colCnt = this.colCnt
     let html = ''
     let row
-    let col
+    //let col
 
     if (this.headContainerEl) {
       this.headContainerEl.html(this.renderHeadHtml())
@@ -117,8 +121,12 @@ export default class DayGrid extends InteractiveDateComponent {
     this.el.html(html)
 
     this.rowEls = this.el.find('.fc-row')
+
+    /*
+
     this.cellEls = this.el.find('.fc-day, .fc-disabled-day')
 
+   
     this.rowCoordCache = new CoordCache({
       els: this.rowEls,
       isVertical: true
@@ -141,6 +149,7 @@ export default class DayGrid extends InteractiveDateComponent {
         })
       }
     }
+    */
   }
 
 
@@ -149,7 +158,7 @@ export default class DayGrid extends InteractiveDateComponent {
   renderDayRowHtml(row, isRigid) {
     let theme = this.view.calendar.theme
     let classes = [ 'fc-row', 'fc-week', theme.getClass('dayRow') ]
-
+    
     if (isRigid) {
       classes.push('fc-rigid')
     }
@@ -169,6 +178,7 @@ export default class DayGrid extends InteractiveDateComponent {
               '</thead>' :
               ''
               ) +
+              this.renderContentTrHtml(row) +
           '</table>' +
         '</div>' +
       '</div>'
@@ -182,6 +192,28 @@ export default class DayGrid extends InteractiveDateComponent {
 
   getIsDayNumbersVisible() {
     return this.rowCnt > 1
+  }
+
+  renderContentTrHtml(row){
+    let calendar = (this as any).view.calendar
+    let resources = calendar.opt('resources');
+    let rowHtml = ''
+    let i
+
+    if (resources && resources.length > 0){
+      for (i = 0; i < resources.length; i++){
+        rowHtml += this.renderContentCol(true, resources[i]);
+      } 
+    }else{
+      rowHtml += this.renderContentCol(true);
+    }
+
+    return '' +
+    '<tr>' +
+      (this.isRTL ? '' : this.renderNumberIntroHtml(row)) +
+      rowHtml +
+      (this.isRTL ? this.renderNumberIntroHtml(row) : '') +
+    '</tr>'
   }
 
 

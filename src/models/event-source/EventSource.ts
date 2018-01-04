@@ -168,5 +168,6 @@ EventSource.defineStandardProps({
   overlap: true,
   constraint: true,
   allDayDefault: true,
-  eventDataTransform: true
+  eventDataTransform: true,
+  resourceId:true
 })

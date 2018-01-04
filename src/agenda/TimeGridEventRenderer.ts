@@ -15,9 +15,23 @@ export default class TimeGridEventRenderer extends EventRenderer {
     this.timeGrid = timeGrid
   }
 
-
   renderFgSegs(segs) {
-    this.renderFgSegsIntoContainers(segs, this.timeGrid.fgContainerEls)
+    let i
+    let resSegs
+    let calendar = (this as any).view.calendar
+    let resources = calendar.opt('resources');
+    let resContainer
+
+    if (resources && resources.length > 0){
+      for (i = 0; i < resources.length; i++){
+        resSegs = this.timeGrid.getSegsByResource(segs, resources[i]);
+        resContainer = this.timeGrid.getContainerEls(this.timeGrid.contentSkeletonEl, 'fgEvent', resources[i]);
+        this.renderFgSegsIntoContainers(resSegs, resContainer)
+      } 
+    }else{
+      resContainer = this.timeGrid.getContainerEls(this.timeGrid.contentSkeletonEl, 'fgEvent');
+      this.renderFgSegsIntoContainers(segs, resContainer)
+    }
   }
 
 
@@ -57,6 +71,27 @@ export default class TimeGridEventRenderer extends EventRenderer {
     return true
   }
 
+  getResource(id){
+    if (id === undefined || id === null){
+      return null;
+    }
+
+    let view = this.view
+    let calendar = view.calendar
+    let resources = calendar.opt('resources');
+    let i
+
+    if (resources && resources.length > 0){
+      for (i = 0; i < resources.length; i++){
+        if (resources[i].id === id){
+          return resources[i];
+        }
+      } 
+    }
+
+    return null;
+  }
+
 
   // Renders the HTML for a single event segment's default rendering
   fgSegHtml(seg, disableResizing) {
@@ -70,6 +105,7 @@ export default class TimeGridEventRenderer extends EventRenderer {
     let isResizableFromEnd = !disableResizing && seg.isEnd && view.isEventDefResizableFromEnd(eventDef)
     let classes = this.getSegClasses(seg, isDraggable, isResizableFromStart || isResizableFromEnd)
     let skinCss = cssToStr(this.getSkinCss(eventDef))
+    let resource = this.getResource(eventDef.resourceId);
     let timeText
     let fullTimeText // more verbose time text. for the print stylesheet
     let startTimeText // just the start time text
@@ -100,12 +136,22 @@ export default class TimeGridEventRenderer extends EventRenderer {
         ' href="' + htmlEscape(eventDef.url) + '"' :
         ''
         ) +
+      (eventDef.resourceId ?
+        ' data-resource-id="' + eventDef.resourceId + '"' :
+        ''
+      ) +
       (skinCss ?
         ' style="' + skinCss + '"' :
         ''
         ) +
       '>' +
         '<div class="fc-content">' +
+          (resource ? 
+            '<div class="fc-resource">' +
+              '<span>' + htmlEscape(resource.name) + '</span>' +
+            '</div>' :
+            ''
+          ) +
           (timeText ?
             '<div class="fc-time"' +
             ' data-start="' + htmlEscape(startTimeText) + '"' +

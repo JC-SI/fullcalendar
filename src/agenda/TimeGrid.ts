@@ -31,7 +31,11 @@ export default class TimeGrid extends InteractiveDateComponent {
   dayDates: DayTableInterface['dayDates']
   daysPerRow: DayTableInterface['daysPerRow']
   colCnt: DayTableInterface['colCnt']
+  getContainerEls: DayTableInterface['getContainerEls']
+  groupSegsByResource: DayTableInterface['groupSegsByResource']
+  getSegsByResource: DayTableInterface['getSegsByResource']
   updateDayTable: DayTableInterface['updateDayTable']
+  renderContentCol: DayTableInterface['renderContentCol']
   renderHeadHtml: DayTableInterface['renderHeadHtml']
   renderBgTrHtml: DayTableInterface['renderBgTrHtml']
   bookendCells: DayTableInterface['bookendCells']
@@ -313,30 +317,26 @@ export default class TimeGrid extends InteractiveDateComponent {
   /* Content Skeleton
   ------------------------------------------------------------------------------------------------------------------*/
 
-
   // Renders the DOM that the view's content will live in
   renderContentSkeleton() {
-    let cellHtml = ''
+    let calendar = (this as any).view.calendar
+    let resources = calendar.opt('resources');
+    let rowHtml = ''
     let i
     let skeletonEl
 
-    for (i = 0; i < this.colCnt; i++) {
-      cellHtml +=
-        '<td>' +
-          '<div class="fc-content-col">' +
-            '<div class="fc-event-container fc-helper-container"></div>' +
-            '<div class="fc-event-container"></div>' +
-            '<div class="fc-highlight-container"></div>' +
-            '<div class="fc-bgevent-container"></div>' +
-            '<div class="fc-business-container"></div>' +
-          '</div>' +
-        '</td>'
+    if (resources && resources.length > 0){
+      for (i = 0; i < resources.length; i++){
+        rowHtml += this.renderContentCol(false, resources[i]);
+      } 
+    }else{
+      rowHtml += this.renderContentCol(false);
     }
 
     skeletonEl = this.contentSkeletonEl = $(
       '<div class="fc-content-skeleton">' +
         '<table>' +
-          '<tr>' + cellHtml + '</tr>' +
+          '<tr>' + rowHtml + '</tr>' +
         '</table>' +
       '</div>'
     )
@@ -352,7 +352,6 @@ export default class TimeGrid extends InteractiveDateComponent {
     this.el.append(skeletonEl)
   }
 
-
   unrenderContentSkeleton() {
     this.contentSkeletonEl.remove()
     this.contentSkeletonEl = null
@@ -363,7 +362,6 @@ export default class TimeGrid extends InteractiveDateComponent {
     this.highlightContainerEls = null
     this.businessContainerEls = null
   }
-
 
   // Given a flat array of segments, return an array of sub-arrays, grouped by each segment's col
   groupSegsByCol(segs) {

@@ -6,7 +6,11 @@ export interface DayTableInterface {
   daysPerRow: any
   rowCnt: any
   colCnt: any
+  getContainerEls(scope, type, resource)
+  groupSegsByResource(segs)
+  getSegsByResource(segs, resource)
   updateDayTable()
+  renderContentCol(dayGrid, resource?)
   renderHeadHtml()
   renderBgTrHtml(row)
   bookendCells(trEl)
@@ -77,6 +81,34 @@ export default class DayTableMixin extends Mixin implements DayTableInterface {
     this.rowCnt = rowCnt
 
     this.updateDayTableCols()
+  }
+
+  getContainerEls(scope, type, resource){
+    let res = resource ? ('[data-resource-id="'+ resource.id + '"]') : ''
+    let qCol = '.fc-content-col' + res
+    let q
+    switch(type){
+      case 'col':
+        q = qCol
+      break
+      case 'helper':
+        q = qCol + ' .fc-helper-container'
+        break
+      case 'fgEvent':
+        q = qCol + ' .fc-event-container:not(.fc-helper-container)'
+      break
+      case 'bgEvent':
+        q = qCol + ' .fc-bgevent-container'
+      break
+      case 'highlight':
+        q = qCol + ' .fc-highlight-container'
+      break
+      case 'businessHours':
+        q = qCol + ' .fc-business-container'
+      break
+    }
+
+    return scope.find(q);
   }
 
 
@@ -262,39 +294,95 @@ export default class DayTableMixin extends Mixin implements DayTableInterface {
     return segs
   }
 
-
   /* Header Rendering
   ------------------------------------------------------------------------------------------------------------------*/
 
-
   renderHeadHtml() {
-    let theme = (this as any).view.calendar.theme
+    let calendar = (this as any).view.calendar
+    let theme = calendar.theme
+    let resources = calendar.opt('resources');
+
+    if (resources && resources.length > 0){
+      return '' +
+        '<div class="fc-row ' + theme.getClass('headerRow') + '">' +
+        '<table class="' + theme.getClass('tableGrid') + '">' +
+          '<thead>' +
+            '<tr>' +
+            ((this as any).isRTL ? '' : this.renderHeadIntroHtml()) +
+              this.renderHeadResourcesHtml(resources) +
+            ((this as any).isRTL ? this.renderHeadIntroHtml() : '') +
+            '</tr>' +
+            '<tr>' +
+            ((this as any).isRTL ? '' : this.renderHeadIntroHtml()) +
+              this.renderHeadDatesHtml(resources) +
+            ((this as any).isRTL ? this.renderHeadIntroHtml() : '') +
+            '</tr>' +
+          '</thead>' +
+        '</table>' +
+      '</div>'
+    }
 
     return '' +
       '<div class="fc-row ' + theme.getClass('headerRow') + '">' +
         '<table class="' + theme.getClass('tableGrid') + '">' +
           '<thead>' +
-            this.renderHeadTrHtml() +
+            this.renderHeadDatesHtml() +
           '</thead>' +
         '</table>' +
       '</div>'
   }
 
+  renderHeadResourcesHtml(resources){
+    let htmls = []
+    let col
+
+    const colCnt = resources.length;
+    for (col = 0; col < colCnt; col++) {
+      const resource = resources[col];
+      htmls.push((this as any).renderHeadResourceCellHtml(resource))
+    }
+
+    return htmls.join('')
+  }
+
+  renderHeadResourceCellHtml(resource) {
+    let t = (this as any)
+    let view = t.view
+    let classNames = [
+      'fc-resource-header',
+      view.calendar.theme.getClass('widgetHeader')
+    ]
+    let innerHtml = htmlEscape(resource.name || resource.text);
+
+    return '' +
+      '<th class="' + classNames.join(' ') + '"' + 
+      (this.colCnt > 1 ?
+        ' colspan="' + this.colCnt + '"' :
+        '') +
+      '>' +
+          innerHtml +
+      '</th>'
+  }
 
   renderHeadIntroHtml() {
     return this.renderIntroHtml() // fall back to generic
   }
 
+  renderHeadDatesHtml(resources = null) {
+    if (!resources){
+      return this.renderHeadDateCellsHtml()
+    }else{
+      let htmls = []
+      let i
 
-  renderHeadTrHtml() {
-    return '' +
-      '<tr>' +
-        ((this as any).isRTL ? '' : this.renderHeadIntroHtml()) +
-        this.renderHeadDateCellsHtml() +
-        ((this as any).isRTL ? this.renderHeadIntroHtml() : '') +
-      '</tr>'
+      const rsCnt = resources.length;
+      for (i = 0; i < rsCnt; i++) {
+        htmls.push((this as any).renderHeadDateCellsHtml())
+      }
+
+      return htmls.join('')
+    }
   }
-
 
   renderHeadDateCellsHtml() {
     let htmls = []
@@ -365,6 +453,65 @@ export default class DayTableMixin extends Mixin implements DayTableInterface {
       '</th>'
   }
 
+  groupSegsByResource(segs) {
+    let segsByRes = {}
+    let i
+    let id
+
+    for (i = 0; i < segs.length; i++) {
+      id = segs[i].resourceId;
+      segsByRes[id] = segsByRes[id] || [];
+      segsByRes[id].push(segs[i])
+    }
+
+    return segsByRes
+  }
+
+  getSegsByResource(segs, resource){
+    if (!resource){
+      return segs
+    }
+
+    let i
+    let result = []
+    for (i = 0; i < segs.length; i++) {
+      if (segs[i].resourceId === resource.id){
+        result.push(segs[i])
+      }
+    }
+
+    return result;
+  }
+
+/* Content Col Rendering
+  ------------------------------------------------------------------------------------------------------------------*/
+  renderContentCol(dayGrid, resource?){
+    let colHtml = ''
+    let i
+    let colSpan = this.colCnt
+    let colCount = dayGrid ? 1 : this.colCnt
+    
+    for (i = 0; i < colCount; i++) {
+      colHtml +=
+        (
+          dayGrid ? '<td colspan="'+ colSpan + '">' :
+          '<td>'
+        ) +
+          '<div class="fc-content-col" ' + 
+          (resource ? ('data-resource-id="' + resource.id + '"') : '') + 
+          '>' +
+            '<div class="fc-event-container fc-helper-container"></div>' +
+            '<div class="fc-event-container"></div>' +
+            '<div class="fc-highlight-container"></div>' +
+            '<div class="fc-bgevent-container"></div>' +
+            '<div class="fc-business-container"></div>' +
+          '</div>' +
+        '</td>'
+    }
+
+    return colHtml;
+  }
+
 
   /* Background Rendering
   ------------------------------------------------------------------------------------------------------------------*/
@@ -374,30 +521,46 @@ export default class DayTableMixin extends Mixin implements DayTableInterface {
     return '' +
       '<tr>' +
         ((this as any).isRTL ? '' : this.renderBgIntroHtml(row)) +
-        this.renderBgCellsHtml(row) +
+        this.renderBgHtml(row) +
         ((this as any).isRTL ? this.renderBgIntroHtml(row) : '') +
       '</tr>'
   }
-
 
   renderBgIntroHtml(row) {
     return this.renderIntroHtml() // fall back to generic
   }
 
+  renderBgHtml(row){
+    let calendar = (this as any).view.calendar
+    let resources = calendar.opt('resources');
 
-  renderBgCellsHtml(row) {
     let htmls = []
-    let col
-    let date
+    let i
 
-    for (col = 0; col < this.colCnt; col++) {
-      date = this.getCellDate(row, col)
-      htmls.push((this as any).renderBgCellHtml(date))
+    if (resources && resources.length > 0){
+      for (i = 0; i < resources.length; i++) {
+        htmls.push((this as any).renderBgCellsHtml(row, resources[i]))
+      }
+    }else{
+      htmls.push((this as any).renderBgCellsHtml(row))
     }
 
     return htmls.join('')
   }
 
+  renderBgCellsHtml(row, resource) {
+    let htmls = []
+    let col
+    let date
+    let otherAttrs = resource ? ('data-resource-id="' + resource.id + '"') : '';
+
+    for (col = 0; col < this.colCnt; col++) {
+      date = this.getCellDate(row, col)
+      htmls.push((this as any).renderBgCellHtml(date, otherAttrs))
+    }
+
+    return htmls.join('')
+  }
 
   renderBgCellHtml(date, otherAttrs) {
     let t = (this as any)

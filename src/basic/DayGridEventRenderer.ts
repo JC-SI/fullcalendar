@@ -27,61 +27,11 @@ export default class DayGridEventRenderer extends EventRenderer {
     super.renderBgRanges(eventRanges)
   }
 
-
-  // Renders the given foreground event segments onto the grid
-  renderFgSegs(segs) {
-    let rowStructs = this.rowStructs = this.renderSegRows(segs)
-
-    // append to each row's content skeleton
-    this.dayGrid.rowEls.each(function(i, rowNode) {
-      $(rowNode).find('.fc-content-skeleton > table').append(
-        rowStructs[i].tbodyEl
-      )
-    })
-  }
-
-
-  // Unrenders all currently rendered foreground event segments
-  unrenderFgSegs() {
-    let rowStructs = this.rowStructs || []
-    let rowStruct
-
-    while ((rowStruct = rowStructs.pop())) {
-      rowStruct.tbodyEl.remove()
-    }
-
-    this.rowStructs = null
-  }
-
-
-  // Uses the given events array to generate <tbody> elements that should be appended to each row's content skeleton.
-  // Returns an array of rowStruct objects (see the bottom of `renderSegRow`).
-  // PRECONDITION: each segment shoud already have a rendered and assigned `.el`
-  renderSegRows(segs) {
-    let rowStructs = []
-    let segRows
-    let row
-
-    segRows = this.groupSegRows(segs) // group into nested arrays
-
-    // iterate each row of segment groupings
-    for (row = 0; row < segRows.length; row++) {
-      rowStructs.push(
-        this.renderSegRow(row, segRows[row])
-      )
-    }
-
-    return rowStructs
-  }
-
-
-  // Given a row # and an array of segments all in the same row, render a <tbody> element, a skeleton that contains
-  // the segments. Returns object with a bunch of internal data about how the render was calculated.
-  // NOTE: modifies rowSegs
-  renderSegRow(row, rowSegs) {
+  renderRowSegs(row, rowSegs){
     let colCnt = this.dayGrid.colCnt
     let segLevels = this.buildSegLevels(rowSegs) // group into sub-arrays of levels
     let levelCnt = Math.max(1, segLevels.length) // ensure at least one level
+    let table = $('<table/>')
     let tbody = $('<tbody/>')
     let segMatrix = [] // lookup for which segments are rendered into which level+col cells
     let cellMatrix = [] // lookup for all <td> elements of the level+col matrix
@@ -150,18 +100,54 @@ export default class DayGridEventRenderer extends EventRenderer {
       }
 
       emptyCellsUntil(colCnt) // finish off the row
-      this.dayGrid.bookendCells(tr)
       tbody.append(tr)
     }
 
-    return { // a "rowStruct"
-      row: row, // the row number
-      tbodyEl: tbody,
-      cellMatrix: cellMatrix,
-      segMatrix: segMatrix,
-      segLevels: segLevels,
-      segs: rowSegs
+    table.append(tbody);
+    return table[0].outerHTML;
+  }
+
+  renderFgRow(row, rowEl, segs){
+    let i
+    let resSegs
+    let calendar = (this as any).view.calendar
+    let resources = calendar.opt('resources');
+    let resContainer
+
+    if (resources && resources.length > 0){
+      for (i = 0; i < resources.length; i++){
+        resSegs = this.dayGrid.getSegsByResource(segs, resources[i]);
+        resContainer = this.dayGrid.getContainerEls(rowEl, 'col', resources[i]);
+        resContainer.html(this.renderRowSegs(row, resSegs))
+      } 
+    }else{
+      resContainer = this.dayGrid.getContainerEls(rowEl, 'col');
+      resContainer.html(this.renderRowSegs(row, resSegs))
     }
+  }
+
+  // Renders the given foreground event segments onto the grid
+  renderFgSegs(segs) {
+    let segRows
+    segRows = this.groupSegRows(segs) // group into nested arrays
+
+    // append to each row's content skeleton
+    this.dayGrid.rowEls.each(function(i, rowNode) {
+      this.renderFgRow(i, $(rowNode), segRows[i])
+    }.bind(this))
+  }
+
+
+  // Unrenders all currently rendered foreground event segments
+  unrenderFgSegs() {
+    let rowStructs = this.rowStructs || []
+    let rowStruct
+
+    while ((rowStruct = rowStructs.pop())) {
+      rowStruct.tbodyEl.remove()
+    }
+
+    this.rowStructs = null
   }
 
 

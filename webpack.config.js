@@ -25,7 +25,7 @@ const BANNER =
 module.exports = {
 
   entry: Object.assign({}, MODULES, generateLocaleMap()),
-
+  devtool: 'source-map',
   externals: {
     jquery: {
       commonjs: 'jquery',
